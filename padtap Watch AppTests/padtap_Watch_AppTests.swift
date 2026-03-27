@@ -325,6 +325,89 @@ struct padtap_Watch_AppTests {
         #expect(viewModel.screen == MatchViewModel.Screen.score)
     }
 
+    @Test("Manueller Wechsel des Aufschlagteams führt Spielerrotation sauber fort")
+    @MainActor
+    func manualServingTeamSwitchKeepsPlayerRotationSmooth() {
+        let viewModel = MatchViewModel(haptics: NoopHaptics())
+        viewModel.setupDraft = MatchSetup.default
+        viewModel.startMatch()
+
+        #expect(viewModel.matchState?.servingTeam == .teamA)
+        #expect(viewModel.matchState?.servingPlayer == .player1)
+
+        viewModel.setServingTeam(.teamB)
+
+        #expect(viewModel.matchState?.servingTeam == .teamB)
+        #expect(viewModel.matchState?.servingPlayer == .player1)
+        #expect(viewModel.matchState?.nextServingPlayerTeamA == .player1)
+        #expect(viewModel.matchState?.nextServingPlayerTeamB == .player2)
+
+        for _ in 0..<4 {
+            viewModel.addPoint(to: .teamB)
+        }
+
+        #expect(viewModel.matchState?.servingTeam == .teamA)
+        #expect(viewModel.matchState?.servingPlayer == .player1)
+    }
+
+    @Test("Tap auf Rotationsanzeige schaltet Aufschlag zum nächsten Spieler in Reihenfolge")
+    @MainActor
+    func advanceServingOrderCyclesPlayersAndTeams() {
+        let viewModel = MatchViewModel(haptics: NoopHaptics())
+        viewModel.setupDraft = MatchSetup.default
+        viewModel.startMatch()
+
+        #expect(viewModel.matchState?.servingTeam == .teamA)
+        #expect(viewModel.matchState?.servingPlayer == .player1)
+
+        viewModel.advanceServingOrder()
+        #expect(viewModel.matchState?.servingTeam == .teamB)
+        #expect(viewModel.matchState?.servingPlayer == .player1)
+
+        viewModel.advanceServingOrder()
+        #expect(viewModel.matchState?.servingTeam == .teamA)
+        #expect(viewModel.matchState?.servingPlayer == .player2)
+
+        viewModel.advanceServingOrder()
+        #expect(viewModel.matchState?.servingTeam == .teamB)
+        #expect(viewModel.matchState?.servingPlayer == .player2)
+
+        viewModel.advanceServingOrder()
+        #expect(viewModel.matchState?.servingTeam == .teamA)
+        #expect(viewModel.matchState?.servingPlayer == .player1)
+    }
+
+    @Test("Manueller Aufschlagwechsel nutzt die korrekte Seite anhand des Punktstands")
+    @MainActor
+    func manualServingChangeKeepsServeSideParity() {
+        let viewModel = MatchViewModel(haptics: NoopHaptics())
+        viewModel.setupDraft = MatchSetup.default
+        viewModel.startMatch()
+
+        viewModel.addPoint(to: .teamA) // 15:0 => odd => left
+        viewModel.advanceServingOrder()
+        #expect(viewModel.matchState?.servingSide == .left)
+
+        viewModel.addPoint(to: .teamB) // 15:15 => even => right
+        viewModel.advanceServingOrder()
+        #expect(viewModel.matchState?.servingSide == .right)
+
+        // Reaches Deuce (40:40) => even => right
+        viewModel.addPoint(to: .teamA)
+        viewModel.addPoint(to: .teamA)
+        viewModel.addPoint(to: .teamB)
+        viewModel.addPoint(to: .teamB)
+        viewModel.advanceServingOrder()
+        #expect(viewModel.matchState?.advantageTeam == nil)
+        #expect(viewModel.matchState?.servingSide == .right)
+
+        // Advantage => odd => left
+        viewModel.addPoint(to: .teamA)
+        viewModel.advanceServingOrder()
+        #expect(viewModel.matchState?.advantageTeam == .teamA)
+        #expect(viewModel.matchState?.servingSide == .left)
+    }
+
     private func initialState(
         format: MatchFormat = .oneSet,
         ruleMode: RuleMode = .advantage,

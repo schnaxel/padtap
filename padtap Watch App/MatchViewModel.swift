@@ -221,8 +221,65 @@ final class MatchViewModel: ObservableObject {
         guard state.servingTeam != team else { return }
 
         history.append(state)
+
+        // Reassign the current service turn to another team without breaking
+        // each team's player rotation order.
+        let previousServingTeam = state.servingTeam
+        let previousServingPlayer = state.servingPlayer
+
+        switch previousServingTeam {
+        case .teamA:
+            state.nextServingPlayerTeamA = previousServingPlayer
+        case .teamB:
+            state.nextServingPlayerTeamB = previousServingPlayer
+        }
+
         state.servingTeam = team
-        state.servingPlayer = team == .teamA ? state.nextServingPlayerTeamA : state.nextServingPlayerTeamB
+        switch team {
+        case .teamA:
+            let newServingPlayer = state.nextServingPlayerTeamA
+            state.servingPlayer = newServingPlayer
+            state.nextServingPlayerTeamA = newServingPlayer.toggled
+        case .teamB:
+            let newServingPlayer = state.nextServingPlayerTeamB
+            state.servingPlayer = newServingPlayer
+            state.nextServingPlayerTeamB = newServingPlayer.toggled
+        }
+
+        if state.isTiebreak, state.tiebreakPointsTeamA == 0, state.tiebreakPointsTeamB == 0 {
+            state.tiebreakFirstServerTeam = team
+        }
+
+        state.servingSide = servingSideForCurrentScore(in: state)
+
+        matchState = state
+        savePendingMatchSnapshot(state: state, history: history)
+    }
+
+    func advanceServingOrder() {
+        guard var state = matchState, !state.isMatchFinished else { return }
+        history.append(state)
+
+        let nextTeam = state.servingTeam.opponent
+        state.servingTeam = nextTeam
+
+        switch nextTeam {
+        case .teamA:
+            let nextPlayer = state.nextServingPlayerTeamA
+            state.servingPlayer = nextPlayer
+            state.nextServingPlayerTeamA = nextPlayer.toggled
+        case .teamB:
+            let nextPlayer = state.nextServingPlayerTeamB
+            state.servingPlayer = nextPlayer
+            state.nextServingPlayerTeamB = nextPlayer.toggled
+        }
+
+        if state.isTiebreak, state.tiebreakPointsTeamA == 0, state.tiebreakPointsTeamB == 0 {
+            state.tiebreakFirstServerTeam = nextTeam
+        }
+
+        state.servingSide = servingSideForCurrentScore(in: state)
+
         matchState = state
         savePendingMatchSnapshot(state: state, history: history)
     }
@@ -306,6 +363,24 @@ final class MatchViewModel: ObservableObject {
             return advantageTeam
         }
         return nil
+    }
+
+    private func servingSideForCurrentScore(in state: MatchState) -> ServeSide {
+        let isOddPointCount: Bool
+
+        if state.isTiebreak {
+            let pointsPlayed = state.tiebreakPointsTeamA + state.tiebreakPointsTeamB
+            isOddPointCount = !pointsPlayed.isMultiple(of: 2)
+        } else if state.setup.ruleMode == .advantage, state.pointsTeamA == 3, state.pointsTeamB == 3 {
+            // In Deuce/Adv mode we only need parity:
+            // Deuce => even, Advantage => odd.
+            isOddPointCount = state.advantageTeam != nil
+        } else {
+            let pointsPlayed = state.pointsTeamA + state.pointsTeamB
+            isOddPointCount = !pointsPlayed.isMultiple(of: 2)
+        }
+
+        return isOddPointCount ? .left : .right
     }
 
     private func playHaptic(for event: ScoreEvent) {

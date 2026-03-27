@@ -41,11 +41,6 @@ struct ScoreView: View {
 
     @ViewBuilder
     private func subPage(state: MatchState, topInset: CGFloat) -> some View {
-        let isTeamABinding = Binding<Bool>(
-            get: { (viewModel.matchState?.servingTeam ?? .teamA) == .teamA },
-            set: { viewModel.setServingTeam($0 ? .teamA : .teamB) }
-        )
-
         VStack(spacing: 0) {
             HStack {
                 Button {
@@ -65,15 +60,9 @@ struct ScoreView: View {
             .padding(.horizontal, 10)
             .padding(.top, topInset)
 
-            HStack(spacing: 8) {
-                Text("Aufschlagteam")
-                    .font(.caption)
-                Spacer(minLength: 4)
-                Toggle("", isOn: isTeamABinding)
-                    .labelsHidden()
-            }
-            .padding(.horizontal, 10)
-            .padding(.top, 8)
+            serveRotationPanel(state: state)
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
 
             Spacer(minLength: 0)
 
@@ -91,6 +80,79 @@ struct ScoreView: View {
         )
         .padding(6)
         .ignoresSafeArea()
+    }
+
+    @ViewBuilder
+    private func serveRotationPanel(state: MatchState) -> some View {
+        let isTopLeftServing = isServingCell(state: state, team: .teamB, player: .player1)
+        let isTopRightServing = isServingCell(state: state, team: .teamB, player: .player2)
+        let isBottomLeftServing = isServingCell(state: state, team: .teamA, player: .player2)
+        let isBottomRightServing = isServingCell(state: state, team: .teamA, player: .player1)
+
+        VStack(spacing: 6) {
+            Text("Aufschlag")
+                .font(.caption2)
+                .foregroundStyle(Color.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button {
+                viewModel.advanceServingOrder()
+            } label: {
+                GeometryReader { geo in
+                    let strokeColor = Color.primary.opacity(0.75)
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Color.white.opacity(0.06))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(strokeColor, lineWidth: 1)
+                            )
+
+                        Rectangle()
+                            .fill(strokeColor)
+                            .frame(width: 1.2)
+
+                        Rectangle()
+                            .fill(strokeColor)
+                            .frame(height: 1.2)
+
+                        VStack(spacing: 0) {
+                            HStack(spacing: 0) {
+                                serveCell(number: 1, highlighted: isTopLeftServing)
+                                serveCell(number: 2, highlighted: isTopRightServing)
+                            }
+                            HStack(spacing: 0) {
+                                serveCell(number: 2, highlighted: isBottomLeftServing)
+                                serveCell(number: 1, highlighted: isBottomRightServing)
+                            }
+                        }
+                    }
+                    .frame(width: geo.size.width, height: geo.size.height)
+                }
+            }
+            .buttonStyle(.plain)
+            .frame(height: 88)
+        }
+    }
+
+    @ViewBuilder
+    private func serveCell(number: Int, highlighted: Bool) -> some View {
+        ZStack {
+            if highlighted {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(AppTheme.accent.opacity(0.26))
+                    .padding(6)
+            }
+
+            Text("\(number)")
+                .font(.system(size: 24, weight: .semibold, design: .rounded))
+                .foregroundStyle(highlighted ? AppTheme.accent : Color.primary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func isServingCell(state: MatchState, team: TeamSide, player: ServePlayer) -> Bool {
+        state.servingTeam == team && state.servingPlayer == player
     }
 
     private func verticalSwipeGesture(pageHeight: CGFloat) -> some Gesture {
