@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Support – padtap</title>
+  <style>
+    :root {
+      --bg: #0b0b0f;
+      --card: #14141b;
+      --text: #f3f3f5;
+      --muted: #b6b7bf;
+      --accent: #3ea6ff;
+      --border: #2b2c35;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.55;
+      color: var(--text);
+      background: radial-gradient(1200px 700px at 20% -10%, #1e2337 0%, var(--bg) 55%);
+      padding: 20px;
+    }
+    .wrap {
+      max-width: 860px;
+      margin: 0 auto;
+      background: color-mix(in oklab, var(--card) 92%, black);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 24px;
+    }
+    h1, h2 { line-height: 1.2; margin: 0 0 12px; }
+    h1 { font-size: 1.8rem; }
+    h2 { font-size: 1.15rem; margin-top: 26px; }
+    p, li { color: var(--muted); }
+    a { color: var(--accent); }
+    .meta {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .note {
+      margin-top: 18px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      background: #11131a;
+      border-radius: 12px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>Support für „padtap“</h1>
+    <p class="meta">Stand: 27. März 2026</p>
+
+    <h2>Kontakt</h2>
+    <p>
+      Wenn du Hilfe brauchst oder einen Fehler melden möchtest, schreib bitte an:
+      <br>
+      <a href="mailto:info@kraas.media">info@kraas.media</a>
+    </p>
+
+    <h2>Über die App</h2>
+    <p>
+      „padtap“ ist eine watch-only Apple Watch App zum Erfassen von Padel-Spielständen
+      (Punkte, Games, Sätze und Match-Historie).
+    </p>
+
+    <h2>Häufige Fragen</h2>
+    <ul>
+      <li><strong>Wo werden meine Daten gespeichert?</strong> Nur lokal auf deiner Apple Watch.</li>
+      <li><strong>Kann ich ein Match fortsetzen?</strong> Ja, nicht abgeschlossene Matches können aus der Historie wieder geöffnet werden.</li>
+      <li><strong>Kann ich Eingabefehler korrigieren?</strong> Ja, über „Zurück“ (Undo).</li>
+      <li><strong>Unterstützt die App Tiebreak?</strong> Ja, optional per Match-Setup.</li>
+    </ul>
+
+    <h2>Problembehebung</h2>
+    <ul>
+      <li>App schließen und erneut öffnen.</li>
+      <li>Bei Verbindungsproblemen mit Xcode: Apple Watch entsperren und auf demselben WLAN wie der Mac nutzen.</li>
+      <li>Bei Darstellungsproblemen: App neu installieren und erneut testen.</li>
+    </ul>
+
+    <h2>Datenschutz</h2>
+    <p>
+      Details zur Datenverarbeitung findest du in der
+      <a href="https://schnaxel.github.io/padtap/privacy.html">Datenschutzerklärung</a>.
+    </p>
+  </main>
+</body>
+</html>
