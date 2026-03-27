@@ -123,6 +123,82 @@ struct padtap_Watch_AppTests {
         #expect(state.servingPlayer == .player2)
     }
 
+    @Test("Bei 6:6 startet ein Tiebreak")
+    func tiebreakStartsAtSixAll() {
+        var state = initialState(format: .bestOfThree, ruleMode: .advantage)
+        state = reachSixAll(from: state)
+
+        #expect(state.isTiebreak == true)
+        #expect(state.tiebreakPointsTeamA == 0)
+        #expect(state.tiebreakPointsTeamB == 0)
+        #expect(engine.pointDisplay(for: state) == .tiebreak(teamA: 0, teamB: 0))
+
+        state = engine.addPoint(to: .teamA, in: state).state
+        #expect(state.tiebreakPointsTeamA == 1)
+        #expect(state.isTiebreak == true)
+    }
+
+    @Test("Tiebreak braucht zwei Punkte Vorsprung")
+    func tiebreakNeedsTwoPointLead() {
+        var state = initialState(format: .bestOfThree, ruleMode: .advantage)
+        state = reachSixAll(from: state)
+
+        for _ in 0..<6 {
+            state = engine.addPoint(to: .teamA, in: state).state
+            state = engine.addPoint(to: .teamB, in: state).state
+        }
+
+        state = engine.addPoint(to: .teamA, in: state).state
+        #expect(state.isTiebreak == true)
+        #expect(state.setsTeamA == 0)
+        #expect(state.setsTeamB == 0)
+
+        state = engine.addPoint(to: .teamA, in: state).state
+        #expect(state.isTiebreak == false)
+        #expect(state.setsTeamA == 1)
+        #expect(state.setsTeamB == 0)
+        #expect(state.completedSets.last == SetScore(teamAGames: 7, teamBGames: 6))
+    }
+
+    @Test("Tiebreak-Aufschlag wechselt 1 Punkt, dann je 2 Punkte")
+    func tiebreakServePattern() {
+        var state = initialState(format: .bestOfThree, ruleMode: .advantage)
+        state = reachSixAll(from: state)
+
+        let firstServer = state.servingTeam
+        let secondServer = firstServer.opponent
+
+        state = engine.addPoint(to: .teamA, in: state).state
+        #expect(state.servingTeam == secondServer)
+
+        state = engine.addPoint(to: .teamB, in: state).state
+        #expect(state.servingTeam == secondServer)
+
+        state = engine.addPoint(to: .teamA, in: state).state
+        #expect(state.servingTeam == firstServer)
+    }
+
+    @Test("Ohne Tiebreak geht der Satz bei 6:6 weiter")
+    func noTiebreakModePlaysOn() {
+        var state = initialState(format: .bestOfThree, ruleMode: .advantage, tiebreakMode: .off)
+        state = reachSixAll(from: state)
+
+        #expect(state.isTiebreak == false)
+        #expect(state.gamesTeamA == 6)
+        #expect(state.gamesTeamB == 6)
+
+        state = winSimpleGame(for: .teamA, from: state)
+        #expect(state.gamesTeamA == 7)
+        #expect(state.gamesTeamB == 6)
+        #expect(state.setsTeamA == 0)
+
+        state = winSimpleGame(for: .teamA, from: state)
+        #expect(state.setsTeamA == 1)
+        #expect(state.gamesTeamA == 0)
+        #expect(state.gamesTeamB == 0)
+        #expect(state.completedSets.last == SetScore(teamAGames: 8, teamBGames: 6))
+    }
+
     @Test("Satz-Gewinn bei 6 Games mit 2 Vorsprung")
     func setWin() {
         var state = initialState(format: .bestOfThree, ruleMode: .advantage)
@@ -251,13 +327,15 @@ struct padtap_Watch_AppTests {
 
     private func initialState(
         format: MatchFormat = .oneSet,
-        ruleMode: RuleMode = .advantage
+        ruleMode: RuleMode = .advantage,
+        tiebreakMode: TiebreakMode = .standard
     ) -> MatchState {
         let setup = MatchSetup(
             teamAName: "Team A",
             teamBName: "Team B",
             format: format,
-            ruleMode: ruleMode
+            ruleMode: ruleMode,
+            tiebreakMode: tiebreakMode
         )
         return engine.initialState(from: setup)
     }
@@ -275,6 +353,15 @@ struct padtap_Watch_AppTests {
         var current = state
         for _ in 0..<4 {
             current = engine.addPoint(to: team, in: current).state
+        }
+        return current
+    }
+
+    private func reachSixAll(from state: MatchState) -> MatchState {
+        var current = state
+        for _ in 0..<6 {
+            current = winSimpleGame(for: .teamA, from: current)
+            current = winSimpleGame(for: .teamB, from: current)
         }
         return current
     }

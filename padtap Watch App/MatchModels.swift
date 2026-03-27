@@ -40,10 +40,18 @@ enum RuleMode: String, CaseIterable, Codable, Identifiable {
     var id: String { rawValue }
 }
 
+enum TiebreakMode: String, CaseIterable, Codable, Identifiable {
+    case standard = "Standard (6:6)"
+    case off = "Aus"
+
+    var id: String { rawValue }
+}
+
 enum PointDisplay: Equatable {
     case regular(teamA: String, teamB: String)
     case deuce
     case advantage(TeamSide)
+    case tiebreak(teamA: Int, teamB: Int)
 }
 
 enum ServeSide: String, Codable, Equatable {
@@ -170,12 +178,54 @@ struct MatchSetup: Equatable, Codable {
     var teamBName: String
     var format: MatchFormat
     var ruleMode: RuleMode
+    var tiebreakMode: TiebreakMode
+
+    private enum CodingKeys: String, CodingKey {
+        case teamAName
+        case teamBName
+        case format
+        case ruleMode
+        case tiebreakMode
+    }
+
+    init(
+        teamAName: String,
+        teamBName: String,
+        format: MatchFormat,
+        ruleMode: RuleMode,
+        tiebreakMode: TiebreakMode = .standard
+    ) {
+        self.teamAName = teamAName
+        self.teamBName = teamBName
+        self.format = format
+        self.ruleMode = ruleMode
+        self.tiebreakMode = tiebreakMode
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        teamAName = try container.decode(String.self, forKey: .teamAName)
+        teamBName = try container.decode(String.self, forKey: .teamBName)
+        format = try container.decode(MatchFormat.self, forKey: .format)
+        ruleMode = try container.decode(RuleMode.self, forKey: .ruleMode)
+        tiebreakMode = try container.decodeIfPresent(TiebreakMode.self, forKey: .tiebreakMode) ?? .standard
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(teamAName, forKey: .teamAName)
+        try container.encode(teamBName, forKey: .teamBName)
+        try container.encode(format, forKey: .format)
+        try container.encode(ruleMode, forKey: .ruleMode)
+        try container.encode(tiebreakMode, forKey: .tiebreakMode)
+    }
 
     static let `default` = MatchSetup(
         teamAName: "Team A",
         teamBName: "Team B",
         format: .bestOfThree,
-        ruleMode: .advantage
+        ruleMode: .advantage,
+        tiebreakMode: .standard
     )
 }
 
@@ -192,6 +242,10 @@ struct MatchState: Equatable, Codable {
     // Team A starts the match with player 1, so next Team-A service turn starts with player 2.
     var nextServingPlayerTeamA: ServePlayer = .player2
     var nextServingPlayerTeamB: ServePlayer = .player1
+    var isTiebreak: Bool = false
+    var tiebreakPointsTeamA: Int = 0
+    var tiebreakPointsTeamB: Int = 0
+    var tiebreakFirstServerTeam: TeamSide? = nil
 
     var completedSets: [SetScore] = []
 
@@ -203,9 +257,6 @@ struct MatchState: Equatable, Codable {
 
     var isMatchFinished: Bool = false
     var winner: TeamSide? = nil
-
-    // MVP marker: at 6:6 we stop play and show "tiebreak not supported yet".
-    var tiebreakPending: Bool = false
 
     init(setup: MatchSetup) {
         self.setup = setup

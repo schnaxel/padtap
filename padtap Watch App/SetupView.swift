@@ -57,6 +57,19 @@ struct SetupView: View {
                         }
                     }
 
+                    SurfaceCard {
+                        VStack(spacing: 8) {
+                            sectionTitle("Tiebreak")
+
+                            Button {
+                                cycleTiebreakMode()
+                            } label: {
+                                selectionRow(title: "Modus", value: viewModel.setupDraft.tiebreakMode.rawValue)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
                     Button("Match starten") {
                         viewModel.startMatch()
                     }
@@ -146,6 +159,13 @@ struct SetupView: View {
         guard let currentIndex = all.firstIndex(of: viewModel.setupDraft.ruleMode) else { return }
         let nextIndex = (currentIndex + 1) % all.count
         viewModel.setupDraft.ruleMode = all[nextIndex]
+    }
+
+    private func cycleTiebreakMode() {
+        let all = TiebreakMode.allCases
+        guard let currentIndex = all.firstIndex(of: viewModel.setupDraft.tiebreakMode) else { return }
+        let nextIndex = (currentIndex + 1) % all.count
+        viewModel.setupDraft.tiebreakMode = all[nextIndex]
     }
 }
 

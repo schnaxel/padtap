@@ -231,7 +231,7 @@ struct ScoreView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(state.tiebreakPending || suppressPointTap)
+        .disabled(suppressPointTap)
     }
 
     @ViewBuilder

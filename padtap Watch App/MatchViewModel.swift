@@ -159,6 +159,8 @@ final class MatchViewModel: ObservableObject {
             return "40"
         case let .advantage(advantageTeam):
             return team == advantageTeam ? "Ad" : "40"
+        case let .tiebreak(teamA, teamB):
+            return team == .teamA ? "\(teamA)" : "\(teamB)"
         }
     }
 
@@ -168,6 +170,8 @@ final class MatchViewModel: ObservableObject {
             return "Deuce"
         case let .advantage(team):
             return "Ad \(teamName(for: team))"
+        case .tiebreak:
+            return "Tiebreak"
         case .regular:
             return nil
         }
@@ -291,6 +295,9 @@ final class MatchViewModel: ObservableObject {
         }
         if state.gamesTeamA != state.gamesTeamB {
             return state.gamesTeamA > state.gamesTeamB ? .teamA : .teamB
+        }
+        if state.isTiebreak, state.tiebreakPointsTeamA != state.tiebreakPointsTeamB {
+            return state.tiebreakPointsTeamA > state.tiebreakPointsTeamB ? .teamA : .teamB
         }
         if state.pointsTeamA != state.pointsTeamB {
             return state.pointsTeamA > state.pointsTeamB ? .teamA : .teamB
