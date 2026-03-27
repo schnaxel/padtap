@@ -36,6 +36,11 @@ struct SetupView: View {
                     viewModel.startMatch()
                 }
                 .buttonStyle(.borderedProminent)
+
+                Button("Zurück") {
+                    viewModel.showHome()
+                }
+                .buttonStyle(.bordered)
             }
         }
         .navigationTitle("Padel Score")

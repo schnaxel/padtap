@@ -1,12 +1,13 @@
 //
-//  ResultView.swift
+//  LastMatchesView.swift
 //  padtap Watch App
 //
 
 import SwiftUI
 
-struct ResultView: View {
+struct LastMatchesView: View {
     @ObservedObject var viewModel: MatchViewModel
+    @State private var pendingDeleteMatch: CompletedMatchSummary?
     private static let matchDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
@@ -15,53 +16,86 @@ struct ResultView: View {
     }()
 
     var body: some View {
-        if let state = viewModel.matchState {
-            ScrollView {
-                VStack(spacing: 8) {
-                    summaryCard(for: state)
-
-                    Button("Undo letzter Punkt") {
-                        viewModel.undo()
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(!viewModel.canUndo)
-
-                    Button("Neues Spiel") {
-                        viewModel.resetToSetup()
-                    }
-                    .buttonStyle(.borderedProminent)
-
-                    Button("Ende") {
-                        viewModel.showHome()
-                    }
-                    .buttonStyle(.bordered)
+        VStack(spacing: 8) {
+            HStack {
+                Button("Zurück") {
+                    viewModel.showHome()
                 }
-                .padding(8)
+                .buttonStyle(.bordered)
+
+                Spacer(minLength: 0)
             }
-        } else {
-            ProgressView()
+            .padding(.horizontal, 8)
+
+            if viewModel.completedMatches.isEmpty {
+                Spacer(minLength: 0)
+
+                Text("Noch keine Matches")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                Spacer(minLength: 0)
+            } else {
+                List {
+                    ForEach(viewModel.completedMatches) { match in
+                        matchRow(match)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 3, leading: 8, bottom: 3, trailing: 8))
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    pendingDeleteMatch = match
+                                } label: {
+                                    Image(systemName: "xmark")
+                                }
+                            }
+                    }
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+            }
+        }
+        .padding(.top, 4)
+        .alert(
+            "Match löschen?",
+            isPresented: Binding(
+                get: { pendingDeleteMatch != nil },
+                set: { isPresented in
+                    if !isPresented { pendingDeleteMatch = nil }
+                }
+            ),
+            presenting: pendingDeleteMatch
+        ) { match in
+            Button("Löschen", role: .destructive) {
+                viewModel.deleteCompletedMatch(id: match.id)
+                pendingDeleteMatch = nil
+            }
+            Button("Abbrechen", role: .cancel) {
+                pendingDeleteMatch = nil
+            }
+        } message: { match in
+            Text("\(match.teamAName) vs \(match.teamBName)")
         }
     }
 
     @ViewBuilder
-    private func summaryCard(for state: MatchState) -> some View {
+    private func matchRow(_ match: CompletedMatchSummary) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("\(state.teamAName) vs \(state.teamBName)")
+            Text("\(match.teamAName) vs \(match.teamBName)")
                 .font(.caption2)
                 .lineLimit(1)
 
-            Text(Self.matchDateFormatter.string(from: state.startedAt))
+            Text(Self.matchDateFormatter.string(from: match.playedAt))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
-            Text("Sätze \(state.setsTeamA):\(state.setsTeamB)")
+            Text("Sätze \(match.setsTeamA):\(match.setsTeamB)")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
-            setScoreBoard(for: state)
+            setScoreBoard(for: match)
                 .padding(.top, 4)
 
-            if state.winner == nil {
+            if match.winner == nil {
                 Text("Manuell beendet")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -77,10 +111,10 @@ struct ResultView: View {
     }
 
     @ViewBuilder
-    private func setScoreBoard(for state: MatchState) -> some View {
+    private func setScoreBoard(for match: CompletedMatchSummary) -> some View {
         GeometryReader { geo in
-            let maxColumns = maxColumns(for: state.setup.format)
-            let columns = scoreColumns(for: state, maxColumns: maxColumns)
+            let maxColumns = maxColumns(for: match.matchFormat)
+            let columns = scoreColumns(for: match, maxColumns: maxColumns)
             let chipSpacing: CGFloat = 4
             let available = max(0, geo.size.width - (chipSpacing * CGFloat(max(0, columns.count - 1))))
             let chipWidth = max(20, min(34, available / CGFloat(max(1, columns.count))))
@@ -128,8 +162,8 @@ struct ResultView: View {
         }
     }
 
-    private func scoreColumns(for state: MatchState, maxColumns: Int) -> [ScoreColumnDisplay] {
-        var columns = state.completedSets.map {
+    private func scoreColumns(for match: CompletedMatchSummary, maxColumns: Int) -> [ScoreColumnDisplay] {
+        var columns = match.setScores.map {
             ScoreColumnDisplay(
                 teamAText: "\($0.teamAGames)",
                 teamBText: "\($0.teamBGames)",
@@ -137,7 +171,7 @@ struct ResultView: View {
             )
         }
 
-        if let unfinishedSet = unfinishedSetIfNeeded(from: state) {
+        if let unfinishedSet = match.unfinishedSet {
             columns.append(
                 ScoreColumnDisplay(
                     teamAText: "\(unfinishedSet.teamAGames)",
@@ -168,13 +202,6 @@ struct ResultView: View {
         return columns
     }
 
-    private func unfinishedSetIfNeeded(from state: MatchState) -> SetScore? {
-        if state.gamesTeamA == 0, state.gamesTeamB == 0 {
-            return nil
-        }
-        return SetScore(teamAGames: state.gamesTeamA, teamBGames: state.gamesTeamB)
-    }
-
     @ViewBuilder
     private func scoreChip(
         text: String,
@@ -198,5 +225,5 @@ struct ResultView: View {
 }
 
 #Preview {
-    ResultView(viewModel: MatchViewModel())
+    LastMatchesView(viewModel: MatchViewModel())
 }

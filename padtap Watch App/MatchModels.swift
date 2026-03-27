@@ -17,6 +17,7 @@ enum TeamSide: String, CaseIterable, Codable, Equatable {
 enum MatchFormat: String, CaseIterable, Codable, Identifiable {
     case oneSet = "1 Satz"
     case bestOfThree = "Best of 3"
+    case bestOfFive = "Best of 5"
 
     var id: String { rawValue }
 
@@ -26,6 +27,8 @@ enum MatchFormat: String, CaseIterable, Codable, Identifiable {
             return 1
         case .bestOfThree:
             return 2
+        case .bestOfFive:
+            return 3
         }
     }
 }
@@ -63,6 +66,84 @@ struct ScoreColumnDisplay: Equatable {
     let isCurrentSet: Bool
 }
 
+struct CompletedMatchSummary: Identifiable, Equatable, Codable {
+    let id: UUID
+    let playedAt: Date
+    let teamAName: String
+    let teamBName: String
+    let matchFormat: MatchFormat
+    let setsTeamA: Int
+    let setsTeamB: Int
+    let setScores: [SetScore]
+    let unfinishedSet: SetScore?
+    let winner: TeamSide?
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case playedAt
+        case teamAName
+        case teamBName
+        case matchFormat
+        case setsTeamA
+        case setsTeamB
+        case setScores
+        case unfinishedSet
+        case winner
+    }
+
+    init(
+        id: UUID = UUID(),
+        playedAt: Date,
+        teamAName: String,
+        teamBName: String,
+        matchFormat: MatchFormat = .bestOfThree,
+        setsTeamA: Int,
+        setsTeamB: Int,
+        setScores: [SetScore],
+        unfinishedSet: SetScore?,
+        winner: TeamSide?
+    ) {
+        self.id = id
+        self.playedAt = playedAt
+        self.teamAName = teamAName
+        self.teamBName = teamBName
+        self.matchFormat = matchFormat
+        self.setsTeamA = setsTeamA
+        self.setsTeamB = setsTeamB
+        self.setScores = setScores
+        self.unfinishedSet = unfinishedSet
+        self.winner = winner
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        playedAt = try container.decode(Date.self, forKey: .playedAt)
+        teamAName = try container.decode(String.self, forKey: .teamAName)
+        teamBName = try container.decode(String.self, forKey: .teamBName)
+        matchFormat = try container.decodeIfPresent(MatchFormat.self, forKey: .matchFormat) ?? .bestOfThree
+        setsTeamA = try container.decode(Int.self, forKey: .setsTeamA)
+        setsTeamB = try container.decode(Int.self, forKey: .setsTeamB)
+        setScores = try container.decode([SetScore].self, forKey: .setScores)
+        unfinishedSet = try container.decodeIfPresent(SetScore.self, forKey: .unfinishedSet)
+        winner = try container.decodeIfPresent(TeamSide.self, forKey: .winner)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(playedAt, forKey: .playedAt)
+        try container.encode(teamAName, forKey: .teamAName)
+        try container.encode(teamBName, forKey: .teamBName)
+        try container.encode(matchFormat, forKey: .matchFormat)
+        try container.encode(setsTeamA, forKey: .setsTeamA)
+        try container.encode(setsTeamB, forKey: .setsTeamB)
+        try container.encode(setScores, forKey: .setScores)
+        try container.encodeIfPresent(unfinishedSet, forKey: .unfinishedSet)
+        try container.encodeIfPresent(winner, forKey: .winner)
+    }
+}
+
 struct MatchSetup: Equatable, Codable {
     var teamAName: String
     var teamBName: String
@@ -72,7 +153,7 @@ struct MatchSetup: Equatable, Codable {
     static let `default` = MatchSetup(
         teamAName: "Team A",
         teamBName: "Team B",
-        format: .oneSet,
+        format: .bestOfThree,
         ruleMode: .advantage
     )
 }

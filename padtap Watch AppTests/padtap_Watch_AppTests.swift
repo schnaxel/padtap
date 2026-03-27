@@ -127,6 +127,24 @@ struct padtap_Watch_AppTests {
         #expect(state.winner == .teamA)
     }
 
+    @Test("Best of 5 benötigt drei gewonnene Sätze")
+    func matchWinBestOfFive() {
+        var state = initialState(format: .bestOfFive, ruleMode: .advantage)
+
+        for _ in 0..<6 { state = winSimpleGame(for: .teamA, from: state) }
+        #expect(state.setsTeamA == 1)
+        #expect(state.isMatchFinished == false)
+
+        for _ in 0..<6 { state = winSimpleGame(for: .teamA, from: state) }
+        #expect(state.setsTeamA == 2)
+        #expect(state.isMatchFinished == false)
+
+        for _ in 0..<6 { state = winSimpleGame(for: .teamA, from: state) }
+        #expect(state.setsTeamA == 3)
+        #expect(state.isMatchFinished == true)
+        #expect(state.winner == .teamA)
+    }
+
     @Test("Undo stellt den letzten Zustand wieder her")
     @MainActor
     func undoRestoresPreviousState() {

@@ -13,12 +13,16 @@ struct ContentView: View {
     var body: some View {
         Group {
             switch viewModel.screen {
+            case .home:
+                HomeView(viewModel: viewModel)
             case .setup:
                 SetupView(viewModel: viewModel)
             case .score:
                 ScoreView(viewModel: viewModel)
             case .result:
                 ResultView(viewModel: viewModel)
+            case .history:
+                LastMatchesView(viewModel: viewModel)
             }
         }
         .persistentSystemOverlays(.hidden)
