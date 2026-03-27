@@ -31,7 +31,7 @@ struct ScoreView: View {
                 .animation(.easeOut(duration: 0.18), value: pageIndex)
                 .clipped()
                 .contentShape(Rectangle())
-                .simultaneousGesture(verticalSwipeGesture(pageHeight: height), including: .gesture)
+                .simultaneousGesture(verticalSwipeGesture(pageHeight: height), including: .subviews)
             }
             .ignoresSafeArea()
         } else {
@@ -47,6 +47,24 @@ struct ScoreView: View {
         )
 
         VStack(spacing: 0) {
+            HStack {
+                Button {
+                    withAnimation(.easeOut(duration: 0.18)) {
+                        pageIndex = 0
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .frame(width: 24, height: 24)
+                        .background(.regularMaterial, in: Circle())
+                }
+                .buttonStyle(.plain)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .padding(.top, topInset)
+
             HStack(spacing: 8) {
                 Text("Aufschlagteam")
                     .font(.caption)
@@ -55,7 +73,7 @@ struct ScoreView: View {
                     .labelsHidden()
             }
             .padding(.horizontal, 10)
-            .padding(.top, topInset)
+            .padding(.top, 8)
 
             Spacer(minLength: 0)
 
@@ -76,7 +94,7 @@ struct ScoreView: View {
     }
 
     private func verticalSwipeGesture(pageHeight: CGFloat) -> some Gesture {
-        DragGesture(minimumDistance: 18, coordinateSpace: .local)
+        DragGesture(minimumDistance: 30, coordinateSpace: .local)
             .updating($verticalDragTranslation) { value, state, _ in
                 guard abs(value.translation.height) > abs(value.translation.width) else { return }
 
@@ -88,19 +106,20 @@ struct ScoreView: View {
             .onEnded { value in
                 guard abs(value.translation.height) > abs(value.translation.width) else { return }
 
-                // Prevent accidental point taps when user finishes a vertical page swipe.
-                if abs(value.translation.height) > 12 {
-                    suppressPointTap = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        suppressPointTap = false
-                    }
-                }
-
                 let threshold = pageHeight * 0.22
+                let previousPageIndex = pageIndex
                 if value.translation.height < -threshold {
                     pageIndex = min(pageIndex + 1, 1)
                 } else if value.translation.height > threshold {
                     pageIndex = max(pageIndex - 1, 0)
+                }
+
+                // Only suppress taps when the swipe really switched page.
+                if pageIndex != previousPageIndex {
+                    suppressPointTap = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        suppressPointTap = false
+                    }
                 }
             }
     }
@@ -176,8 +195,20 @@ struct ScoreView: View {
             VStack(spacing: 0) {
                 Spacer(minLength: 0)
 
-                Text("81 bpm")
-                    .font(.system(size: 15, weight: .regular, design: .rounded))
+                Button {
+                    withAnimation(.easeOut(duration: 0.18)) {
+                        pageIndex = 1
+                    }
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .frame(width: 28, height: 28)
+                    .background(
+                        Circle()
+                            .fill(Color.white.opacity(0.18))
+                    )
+                }
+                .buttonStyle(.plain)
 
                 Spacer(minLength: 0)
             }

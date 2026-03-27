@@ -16,8 +16,8 @@ enum TeamSide: String, CaseIterable, Codable, Equatable {
 
 enum MatchFormat: String, CaseIterable, Codable, Identifiable {
     case oneSet = "1 Satz"
-    case bestOfThree = "Best of 3"
-    case bestOfFive = "Best of 5"
+    case bestOfThree = "Bo3"
+    case bestOfFive = "Bo5"
 
     var id: String { rawValue }
 

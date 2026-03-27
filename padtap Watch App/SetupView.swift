@@ -51,7 +51,7 @@ struct SetupView: View {
                             Button {
                                 cycleRuleMode()
                             } label: {
-                                selectionRow(title: "Modus", value: viewModel.setupDraft.ruleMode.rawValue)
+                                selectionRow(title: "Mode", value: viewModel.setupDraft.ruleMode.rawValue)
                             }
                             .buttonStyle(.plain)
                         }
@@ -64,7 +64,7 @@ struct SetupView: View {
                             Button {
                                 cycleTiebreakMode()
                             } label: {
-                                selectionRow(title: "Modus", value: viewModel.setupDraft.tiebreakMode.rawValue)
+                                selectionRow(title: "Mode", value: viewModel.setupDraft.tiebreakMode.rawValue)
                             }
                             .buttonStyle(.plain)
                         }
