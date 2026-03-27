@@ -375,12 +375,19 @@ struct ScoreView: View {
         let x = displayedSide == .right ? xMagnitude : -xMagnitude
         let y = state.servingTeam == .teamB ? -yMagnitude : yMagnitude
 
-        Capsule()
-            .fill(Color.blue.opacity(0.9))
-            .frame(width: indicatorWidth, height: indicatorHeight)
-            .offset(x: x, y: y)
-            .animation(.easeInOut(duration: 0.14), value: state.servingTeam)
-            .animation(.easeInOut(duration: 0.14), value: state.servingSide)
+        ZStack {
+            Capsule()
+                .fill(Color.blue.opacity(0.9))
+
+            Text("\(state.servingPlayer.rawValue)")
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+        }
+        .frame(width: indicatorWidth, height: indicatorHeight)
+        .offset(x: x, y: y)
+        .animation(.easeInOut(duration: 0.14), value: state.servingTeam)
+        .animation(.easeInOut(duration: 0.14), value: state.servingSide)
+        .animation(.easeInOut(duration: 0.14), value: state.servingPlayer)
     }
 
     private func elapsedText(from start: Date, now: Date) -> String {

@@ -6,8 +6,21 @@
 import SwiftUI
 
 struct LastMatchesView: View {
+    private struct ResumeTarget: Identifiable {
+        enum Kind {
+            case pending
+            case historical
+        }
+
+        let kind: Kind
+        let match: CompletedMatchSummary
+
+        var id: UUID { match.id }
+    }
+
     @ObservedObject var viewModel: MatchViewModel
     @State private var pendingDeleteMatch: CompletedMatchSummary?
+    @State private var pendingResumeTarget: ResumeTarget?
     private static let matchDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
@@ -16,6 +29,8 @@ struct LastMatchesView: View {
     }()
 
     var body: some View {
+        let pendingSummary = viewModel.pendingMatchSummary()
+
         VStack(spacing: 8) {
             HStack {
                 Button("Zurück") {
@@ -27,7 +42,7 @@ struct LastMatchesView: View {
             }
             .padding(.horizontal, 8)
 
-            if viewModel.completedMatches.isEmpty {
+            if viewModel.completedMatches.isEmpty, pendingSummary == nil {
                 Spacer(minLength: 0)
 
                 Text("Noch keine Matches")
@@ -37,15 +52,30 @@ struct LastMatchesView: View {
                 Spacer(minLength: 0)
             } else {
                 List {
+                    if let pendingSummary {
+                        matchRow(pendingSummary)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 3, leading: 8, bottom: 3, trailing: 8))
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                pendingResumeTarget = ResumeTarget(kind: .pending, match: pendingSummary)
+                            }
+                    }
+
                     ForEach(viewModel.completedMatches) { match in
                         matchRow(match)
                             .listRowBackground(Color.clear)
                             .listRowInsets(EdgeInsets(top: 3, leading: 8, bottom: 3, trailing: 8))
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                guard viewModel.canResume(match: match) else { return }
+                                pendingResumeTarget = ResumeTarget(kind: .historical, match: match)
+                            }
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 Button(role: .destructive) {
                                     pendingDeleteMatch = match
                                 } label: {
-                                    Image(systemName: "xmark")
+                                    Label("Löschen", systemImage: "trash")
                                 }
                             }
                     }
@@ -75,6 +105,31 @@ struct LastMatchesView: View {
         } message: { match in
             Text("\(match.teamAName) vs \(match.teamBName)")
         }
+        .alert(
+            "Offenes Spiel weiter spielen?",
+            isPresented: Binding(
+                get: { pendingResumeTarget != nil },
+                set: { isPresented in
+                    if !isPresented { pendingResumeTarget = nil }
+                }
+            ),
+            presenting: pendingResumeTarget
+        ) { target in
+            Button("Ja") {
+                switch target.kind {
+                case .pending:
+                    viewModel.resumePendingMatch()
+                case .historical:
+                    viewModel.resumeCompletedMatch(target.match)
+                }
+                pendingResumeTarget = nil
+            }
+            Button("Nein", role: .cancel) {
+                pendingResumeTarget = nil
+            }
+        } message: { target in
+            Text("\(target.match.teamAName) vs \(target.match.teamBName)")
+        }
     }
 
     @ViewBuilder
@@ -95,11 +150,11 @@ struct LastMatchesView: View {
             setScoreBoard(for: match)
                 .padding(.top, 4)
 
-            if match.winner == nil {
-                Text("Manuell beendet")
-                    .font(.caption2)
+            if match.winner == nil || viewModel.canResume(match: match) {
+                Text("Nicht abgeschlossen")
+                    .font(.system(size: 10, weight: .regular, design: .rounded))
                     .foregroundStyle(.secondary)
-                    .padding(.top, 2)
+                    .padding(.top, 5)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -116,9 +171,12 @@ struct LastMatchesView: View {
             let maxColumns = maxColumns(for: match.matchFormat)
             let columns = scoreColumns(for: match, maxColumns: maxColumns)
             let chipSpacing: CGFloat = 4
-            let available = max(0, geo.size.width - (chipSpacing * CGFloat(max(0, columns.count - 1))))
-            let chipWidth = max(20, min(34, available / CGFloat(max(1, columns.count))))
-            let chipHeight = max(22, chipWidth * 0.86)
+            let availableWidth = max(0, geo.size.width - (chipSpacing * CGFloat(max(0, columns.count - 1))))
+            let maxHeight = geo.size.height
+            let maxChipHeightByLayout = max(18, (maxHeight - chipSpacing) / 2)
+            let maxChipWidthByLayout = maxChipHeightByLayout / 0.86
+            let chipWidth = max(20, min(34, min(maxChipWidthByLayout, availableWidth / CGFloat(max(1, columns.count)))))
+            let chipHeight = max(18, chipWidth * 0.86)
             let chipFont = max(12, chipWidth * 0.46)
 
             VStack(spacing: 4) {

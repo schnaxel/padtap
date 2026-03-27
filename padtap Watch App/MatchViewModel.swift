@@ -10,6 +10,7 @@ import Combine
 final class MatchViewModel: ObservableObject {
     private enum StorageKey {
         static let completedMatches = "completedMatches.v1"
+        static let pendingMatchSnapshot = "pendingMatchSnapshot.v1"
     }
 
     enum Screen {
@@ -25,6 +26,7 @@ final class MatchViewModel: ObservableObject {
     @Published private(set) var matchState: MatchState?
     @Published private(set) var history: [MatchState] = []
     @Published private(set) var completedMatches: [CompletedMatchSummary] = []
+    @Published private(set) var pendingMatch: PendingMatchSnapshot?
 
     private let engine: ScoreEngine
     private let haptics: HapticProviding
@@ -35,6 +37,7 @@ final class MatchViewModel: ObservableObject {
         self.haptics = haptics
         self.userDefaults = userDefaults
         loadPersistedCompletedMatches()
+        loadPendingMatchSnapshot()
     }
 
     convenience init() {
@@ -49,11 +52,17 @@ final class MatchViewModel: ObservableObject {
         !history.isEmpty
     }
 
+    var hasPendingMatch: Bool {
+        pendingMatch != nil
+    }
+
     func showHome() {
+        persistOrClearCurrentSnapshot()
         screen = .home
     }
 
     func showSetup() {
+        persistOrClearCurrentSnapshot()
         matchState = nil
         history.removeAll()
         screen = .setup
@@ -65,7 +74,9 @@ final class MatchViewModel: ObservableObject {
 
     func startMatch() {
         history.removeAll()
-        matchState = engine.initialState(from: setupDraft)
+        let newState = engine.initialState(from: setupDraft)
+        matchState = newState
+        savePendingMatchSnapshot(state: newState, history: history)
         screen = .score
     }
 
@@ -84,9 +95,11 @@ final class MatchViewModel: ObservableObject {
         playHaptic(for: transition.event)
 
         if transition.state.isMatchFinished {
+            clearPendingMatchSnapshot()
             appendCompletedMatch(from: transition.state)
             screen = .result
         } else {
+            savePendingMatchSnapshot(state: transition.state, history: history)
             screen = .score
         }
     }
@@ -101,6 +114,11 @@ final class MatchViewModel: ObservableObject {
 
         matchState = previousState
         screen = previousState.isMatchFinished ? .result : .score
+        if previousState.isMatchFinished {
+            clearPendingMatchSnapshot()
+        } else {
+            savePendingMatchSnapshot(state: previousState, history: history)
+        }
         haptics.play(.undo)
     }
 
@@ -200,19 +218,65 @@ final class MatchViewModel: ObservableObject {
 
         history.append(state)
         state.servingTeam = team
+        state.servingPlayer = team == .teamA ? state.nextServingPlayerTeamA : state.nextServingPlayerTeamB
         matchState = state
+        savePendingMatchSnapshot(state: state, history: history)
     }
 
     func endMatch() {
         guard var state = matchState, !state.isMatchFinished else { return }
+        let resumableState = state
 
         history.append(state)
         state.isMatchFinished = true
         state.winner = manualWinner(from: state)
         matchState = state
-        appendCompletedMatch(from: state)
+        appendCompletedMatch(from: state, resumeState: resumableState)
+        clearPendingMatchSnapshot()
         screen = .result
         haptics.play(.match)
+    }
+
+    func pendingMatchSummary() -> CompletedMatchSummary? {
+        guard let snapshot = pendingMatch else { return nil }
+        let state = snapshot.state
+        return CompletedMatchSummary(
+            id: snapshot.id,
+            playedAt: state.startedAt,
+            teamAName: state.teamAName,
+            teamBName: state.teamBName,
+            matchFormat: state.setup.format,
+            setsTeamA: state.setsTeamA,
+            setsTeamB: state.setsTeamB,
+            setScores: state.completedSets,
+            unfinishedSet: unfinishedSetIfNeeded(from: state),
+            winner: nil,
+            resumeState: state
+        )
+    }
+
+    func resumePendingMatch() {
+        guard let snapshot = pendingMatch else { return }
+        setupDraft = snapshot.state.setup
+        history = snapshot.history
+        matchState = snapshot.state
+        savePendingMatchSnapshot(state: snapshot.state, history: snapshot.history)
+        screen = .score
+    }
+
+    func canResume(match: CompletedMatchSummary) -> Bool {
+        match.resumeState != nil
+    }
+
+    func resumeCompletedMatch(_ match: CompletedMatchSummary) {
+        guard let resumeState = match.resumeState else { return }
+        setupDraft = resumeState.setup
+        history.removeAll()
+        matchState = resumeState
+        completedMatches.removeAll(where: { $0.id == match.id })
+        persistCompletedMatches()
+        savePendingMatchSnapshot(state: resumeState, history: history)
+        screen = .score
     }
 
     func deleteCompletedMatch(id: UUID) {
@@ -252,7 +316,7 @@ final class MatchViewModel: ObservableObject {
         }
     }
 
-    private func appendCompletedMatch(from state: MatchState) {
+    private func appendCompletedMatch(from state: MatchState, resumeState: MatchState? = nil) {
         let unfinishedSet = unfinishedSetIfNeeded(from: state)
 
         if completedMatches.contains(where: {
@@ -265,6 +329,7 @@ final class MatchViewModel: ObservableObject {
                 && $0.setScores == state.completedSets
                 && $0.unfinishedSet == unfinishedSet
                 && $0.winner == state.winner
+                && $0.resumeState == resumeState
         }) {
             return
         }
@@ -278,7 +343,8 @@ final class MatchViewModel: ObservableObject {
             setsTeamB: state.setsTeamB,
             setScores: state.completedSets,
             unfinishedSet: unfinishedSet,
-            winner: state.winner
+            winner: state.winner,
+            resumeState: resumeState
         )
         completedMatches.insert(summary, at: 0)
         persistCompletedMatches()
@@ -309,10 +375,64 @@ final class MatchViewModel: ObservableObject {
         completedMatches = decoded
     }
 
+    private func loadPendingMatchSnapshot() {
+        guard let data = userDefaults.data(forKey: StorageKey.pendingMatchSnapshot) else {
+            return
+        }
+        guard let decoded = try? JSONDecoder().decode(PendingMatchSnapshot.self, from: data) else {
+            userDefaults.removeObject(forKey: StorageKey.pendingMatchSnapshot)
+            return
+        }
+
+        if decoded.state.isMatchFinished {
+            userDefaults.removeObject(forKey: StorageKey.pendingMatchSnapshot)
+            return
+        }
+        pendingMatch = decoded
+    }
+
     private func persistCompletedMatches() {
         guard let data = try? JSONEncoder().encode(completedMatches) else {
             return
         }
         userDefaults.set(data, forKey: StorageKey.completedMatches)
+    }
+
+    private func persistOrClearCurrentSnapshot() {
+        guard let state = matchState else {
+            clearPendingMatchSnapshot()
+            return
+        }
+        if state.isMatchFinished {
+            clearPendingMatchSnapshot()
+            return
+        }
+        savePendingMatchSnapshot(state: state, history: history)
+    }
+
+    private func savePendingMatchSnapshot(state: MatchState, history: [MatchState]) {
+        let snapshotID: UUID
+        if let currentSnapshot = pendingMatch, currentSnapshot.state.startedAt == state.startedAt {
+            snapshotID = currentSnapshot.id
+        } else {
+            snapshotID = UUID()
+        }
+
+        let snapshot = PendingMatchSnapshot(
+            id: snapshotID,
+            state: state,
+            history: history
+        )
+        pendingMatch = snapshot
+
+        guard let data = try? JSONEncoder().encode(snapshot) else {
+            return
+        }
+        userDefaults.set(data, forKey: StorageKey.pendingMatchSnapshot)
+    }
+
+    private func clearPendingMatchSnapshot() {
+        pendingMatch = nil
+        userDefaults.removeObject(forKey: StorageKey.pendingMatchSnapshot)
     }
 }

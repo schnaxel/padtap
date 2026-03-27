@@ -6,6 +6,7 @@
 //
 
 import Testing
+import Foundation
 @testable import padtap_Watch_App
 
 struct padtap_Watch_AppTests {
@@ -29,6 +30,7 @@ struct padtap_Watch_AppTests {
         let state = initialState(ruleMode: .advantage)
         #expect(state.servingTeam == .teamA)
         #expect(state.servingSide == .right)
+        #expect(state.servingPlayer == .player1)
     }
 
     @Test("Aufschlagseite wechselt nach jedem Punkt")
@@ -38,10 +40,12 @@ struct padtap_Watch_AppTests {
         state = engine.addPoint(to: .teamA, in: state).state
         #expect(state.servingTeam == .teamA)
         #expect(state.servingSide == .left)
+        #expect(state.servingPlayer == .player1)
 
         state = engine.addPoint(to: .teamB, in: state).state
         #expect(state.servingTeam == .teamA)
         #expect(state.servingSide == .right)
+        #expect(state.servingPlayer == .player1)
     }
 
     @Test("Deuce wird korrekt angezeigt")
@@ -81,6 +85,7 @@ struct padtap_Watch_AppTests {
         #expect(state.advantageTeam == nil)
         #expect(state.servingTeam == .teamB)
         #expect(state.servingSide == .right)
+        #expect(state.servingPlayer == .player1)
     }
 
     @Test("Game-Gewinn setzt Punkte zurück")
@@ -98,6 +103,24 @@ struct padtap_Watch_AppTests {
         #expect(state.pointsTeamB == 0)
         #expect(state.servingTeam == .teamB)
         #expect(state.servingSide == .right)
+        #expect(state.servingPlayer == .player1)
+    }
+
+    @Test("Aufschlagspieler rotiert je Team nach jedem Service-Game")
+    func servingPlayerRotatesPerTeam() {
+        var state = initialState(ruleMode: .advantage)
+
+        state = winSimpleGame(for: .teamA, from: state)
+        #expect(state.servingTeam == .teamB)
+        #expect(state.servingPlayer == .player1)
+
+        state = winSimpleGame(for: .teamB, from: state)
+        #expect(state.servingTeam == .teamA)
+        #expect(state.servingPlayer == .player2)
+
+        state = winSimpleGame(for: .teamA, from: state)
+        #expect(state.servingTeam == .teamB)
+        #expect(state.servingPlayer == .player2)
     }
 
     @Test("Satz-Gewinn bei 6 Games mit 2 Vorsprung")
@@ -178,6 +201,52 @@ struct padtap_Watch_AppTests {
 
         #expect(viewModel.matchState?.isMatchFinished == false)
         #expect(viewModel.matchState?.winner == nil)
+    }
+
+    @Test("Laufendes Match wird persistiert und wieder geladen")
+    @MainActor
+    func pendingMatchPersistence() {
+        let suite = "padtap.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+
+        var viewModel = MatchViewModel(engine: ScoreEngine(), haptics: NoopHaptics(), userDefaults: defaults)
+        viewModel.setupDraft = MatchSetup.default
+        viewModel.startMatch()
+        viewModel.addPoint(to: TeamSide.teamA)
+
+        #expect(viewModel.pendingMatchSummary() != nil)
+
+        viewModel = MatchViewModel(engine: ScoreEngine(), haptics: NoopHaptics(), userDefaults: defaults)
+        #expect(viewModel.pendingMatchSummary() != nil)
+        #expect(viewModel.pendingMatch?.state.pointsTeamA == 1)
+        #expect(viewModel.pendingMatch?.state.isMatchFinished == false)
+    }
+
+    @Test("Manuell beendetes Match kann aus Historie fortgesetzt werden")
+    @MainActor
+    func resumeHistoricalOpenMatch() {
+        let suite = "padtap.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+
+        let viewModel = MatchViewModel(engine: ScoreEngine(), haptics: NoopHaptics(), userDefaults: defaults)
+        viewModel.setupDraft = MatchSetup.default
+        viewModel.startMatch()
+        viewModel.addPoint(to: TeamSide.teamA)
+        viewModel.endMatch()
+
+        guard let resumable = viewModel.completedMatches.first else {
+            Issue.record("Expected a resumable historical match")
+            return
+        }
+        #expect(viewModel.canResume(match: resumable))
+
+        viewModel.resumeCompletedMatch(resumable)
+
+        #expect(viewModel.matchState?.isMatchFinished == false)
+        #expect(viewModel.matchState?.pointsTeamA == 1)
+        #expect(viewModel.screen == MatchViewModel.Screen.score)
     }
 
     private func initialState(

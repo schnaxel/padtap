@@ -98,8 +98,19 @@ struct ScoreEngine {
         state.pointsTeamA = 0
         state.pointsTeamB = 0
         state.advantageTeam = nil
-        state.servingTeam = state.servingTeam.opponent
+        let nextServingTeam = state.servingTeam.opponent
+        let nextServingPlayer: ServePlayer
+        switch nextServingTeam {
+        case .teamA:
+            nextServingPlayer = state.nextServingPlayerTeamA
+            state.nextServingPlayerTeamA = nextServingPlayer.toggled
+        case .teamB:
+            nextServingPlayer = state.nextServingPlayerTeamB
+            state.nextServingPlayerTeamB = nextServingPlayer.toggled
+        }
+        state.servingTeam = nextServingTeam
         state.servingSide = .right
+        state.servingPlayer = nextServingPlayer
 
         if state.gamesTeamA == 6 && state.gamesTeamB == 6 {
             state.tiebreakPending = true

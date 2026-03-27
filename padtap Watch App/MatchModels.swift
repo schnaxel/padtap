@@ -55,6 +55,15 @@ enum ServeSide: String, Codable, Equatable {
     }
 }
 
+enum ServePlayer: Int, Codable, Equatable {
+    case player1 = 1
+    case player2 = 2
+
+    var toggled: ServePlayer {
+        self == .player1 ? .player2 : .player1
+    }
+}
+
 struct SetScore: Equatable, Codable {
     let teamAGames: Int
     let teamBGames: Int
@@ -64,6 +73,12 @@ struct ScoreColumnDisplay: Equatable {
     let teamAText: String
     let teamBText: String
     let isCurrentSet: Bool
+}
+
+struct PendingMatchSnapshot: Identifiable, Equatable, Codable {
+    let id: UUID
+    let state: MatchState
+    let history: [MatchState]
 }
 
 struct CompletedMatchSummary: Identifiable, Equatable, Codable {
@@ -77,6 +92,7 @@ struct CompletedMatchSummary: Identifiable, Equatable, Codable {
     let setScores: [SetScore]
     let unfinishedSet: SetScore?
     let winner: TeamSide?
+    let resumeState: MatchState?
 
     private enum CodingKeys: String, CodingKey {
         case id
@@ -89,6 +105,7 @@ struct CompletedMatchSummary: Identifiable, Equatable, Codable {
         case setScores
         case unfinishedSet
         case winner
+        case resumeState
     }
 
     init(
@@ -101,7 +118,8 @@ struct CompletedMatchSummary: Identifiable, Equatable, Codable {
         setsTeamB: Int,
         setScores: [SetScore],
         unfinishedSet: SetScore?,
-        winner: TeamSide?
+        winner: TeamSide?,
+        resumeState: MatchState? = nil
     ) {
         self.id = id
         self.playedAt = playedAt
@@ -113,6 +131,7 @@ struct CompletedMatchSummary: Identifiable, Equatable, Codable {
         self.setScores = setScores
         self.unfinishedSet = unfinishedSet
         self.winner = winner
+        self.resumeState = resumeState
     }
 
     init(from decoder: Decoder) throws {
@@ -127,6 +146,7 @@ struct CompletedMatchSummary: Identifiable, Equatable, Codable {
         setScores = try container.decode([SetScore].self, forKey: .setScores)
         unfinishedSet = try container.decodeIfPresent(SetScore.self, forKey: .unfinishedSet)
         winner = try container.decodeIfPresent(TeamSide.self, forKey: .winner)
+        resumeState = try container.decodeIfPresent(MatchState.self, forKey: .resumeState)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -141,6 +161,7 @@ struct CompletedMatchSummary: Identifiable, Equatable, Codable {
         try container.encode(setScores, forKey: .setScores)
         try container.encodeIfPresent(unfinishedSet, forKey: .unfinishedSet)
         try container.encodeIfPresent(winner, forKey: .winner)
+        try container.encodeIfPresent(resumeState, forKey: .resumeState)
     }
 }
 
@@ -167,6 +188,10 @@ struct MatchState: Equatable, Codable {
     var advantageTeam: TeamSide? = nil
     var servingTeam: TeamSide = .teamA
     var servingSide: ServeSide = .right
+    var servingPlayer: ServePlayer = .player1
+    // Team A starts the match with player 1, so next Team-A service turn starts with player 2.
+    var nextServingPlayerTeamA: ServePlayer = .player2
+    var nextServingPlayerTeamB: ServePlayer = .player1
 
     var completedSets: [SetScore] = []
 

@@ -20,7 +20,7 @@ struct ResultView: View {
                 VStack(spacing: 8) {
                     summaryCard(for: state)
 
-                    Button("Undo letzter Punkt") {
+                    Button("Zurück") {
                         viewModel.undo()
                     }
                     .buttonStyle(.bordered)
