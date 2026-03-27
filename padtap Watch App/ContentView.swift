@@ -26,6 +26,7 @@ struct ContentView: View {
             }
         }
         .persistentSystemOverlays(.hidden)
+        .tint(AppTheme.accent)
         .ignoresSafeArea()
     }
 }

@@ -16,27 +16,41 @@ struct ResultView: View {
 
     var body: some View {
         if let state = viewModel.matchState {
-            ScrollView {
-                VStack(spacing: 8) {
-                    summaryCard(for: state)
+            ThemedScreen {
+                ScrollView {
+                    VStack(spacing: 8) {
+                        HStack(spacing: 8) {
+                            PadTapLogo(size: 22)
 
-                    Button("Zurück") {
-                        viewModel.undo()
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(!viewModel.canUndo)
+                            Text("Ergebnis")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.textPrimary)
 
-                    Button("Neues Spiel") {
-                        viewModel.resetToSetup()
-                    }
-                    .buttonStyle(.borderedProminent)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.top, 4)
 
-                    Button("Ende") {
-                        viewModel.showHome()
+                        summaryCard(for: state)
+
+                        Button("Zurück") {
+                            viewModel.undo()
+                        }
+                        .buttonStyle(SecondaryPillButtonStyle())
+                        .disabled(!viewModel.canUndo)
+
+                        Button("Neues Spiel") {
+                            viewModel.resetToSetup()
+                        }
+                        .buttonStyle(PrimaryPillButtonStyle())
+
+                        Button("Ende") {
+                            viewModel.showHome()
+                        }
+                        .buttonStyle(SecondaryPillButtonStyle())
                     }
-                    .buttonStyle(.bordered)
+                    .padding(8)
                 }
-                .padding(8)
             }
         } else {
             ProgressView()
@@ -48,31 +62,36 @@ struct ResultView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text("\(state.teamAName) vs \(state.teamBName)")
                 .font(.caption2)
+                .foregroundStyle(AppTheme.textPrimary)
                 .lineLimit(1)
 
             Text(Self.matchDateFormatter.string(from: state.startedAt))
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.textSecondary)
 
             Text("Sätze \(state.setsTeamA):\(state.setsTeamB)")
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.textSecondary)
 
             setScoreBoard(for: state)
                 .padding(.top, 4)
 
             if state.winner == nil {
-                Text("Manuell beendet")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 2)
+                Text("Nicht abgeschlossen")
+                    .font(.system(size: 10, weight: .regular, design: .rounded))
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .padding(.top, 5)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(6)
+        .padding(8)
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.white.opacity(0.08))
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(AppTheme.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(AppTheme.border, lineWidth: 1)
         )
     }
 
@@ -188,11 +207,11 @@ struct ResultView: View {
             .frame(width: width, height: height)
             .background(
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(highlighted ? Color.gray.opacity(0.5) : Color.clear.opacity(0.01))
+                    .fill(highlighted ? AppTheme.accentSoft : Color.clear.opacity(0.01))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .stroke(Color.primary.opacity(0.6), lineWidth: 1)
+                    .stroke(AppTheme.border, lineWidth: 1)
             )
     }
 }

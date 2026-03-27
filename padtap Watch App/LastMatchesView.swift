@@ -31,60 +31,69 @@ struct LastMatchesView: View {
     var body: some View {
         let pendingSummary = viewModel.pendingMatchSummary()
 
-        VStack(spacing: 8) {
-            HStack {
+        ThemedScreen {
+            VStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    PadTapLogo(size: 22)
+
+                    Text("Letzte Matches")
+                        .font(.headline)
+                        .foregroundStyle(AppTheme.textPrimary)
+
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 10)
+                .padding(.top, 4)
+
                 Button("Zurück") {
                     viewModel.showHome()
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(SecondaryPillButtonStyle())
+                .padding(.horizontal, 8)
 
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 8)
+                if viewModel.completedMatches.isEmpty, pendingSummary == nil {
+                    Spacer(minLength: 0)
 
-            if viewModel.completedMatches.isEmpty, pendingSummary == nil {
-                Spacer(minLength: 0)
+                    Text("Noch keine Matches")
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.textSecondary)
 
-                Text("Noch keine Matches")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-                Spacer(minLength: 0)
-            } else {
-                List {
-                    if let pendingSummary {
-                        matchRow(pendingSummary)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 3, leading: 8, bottom: 3, trailing: 8))
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                pendingResumeTarget = ResumeTarget(kind: .pending, match: pendingSummary)
-                            }
-                    }
-
-                    ForEach(viewModel.completedMatches) { match in
-                        matchRow(match)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 3, leading: 8, bottom: 3, trailing: 8))
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                guard viewModel.canResume(match: match) else { return }
-                                pendingResumeTarget = ResumeTarget(kind: .historical, match: match)
-                            }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) {
-                                    pendingDeleteMatch = match
-                                } label: {
-                                    Label("Löschen", systemImage: "trash")
+                    Spacer(minLength: 0)
+                } else {
+                    List {
+                        if let pendingSummary {
+                            matchRow(pendingSummary)
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets(top: 3, leading: 8, bottom: 3, trailing: 8))
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    pendingResumeTarget = ResumeTarget(kind: .pending, match: pendingSummary)
                                 }
-                            }
+                        }
+
+                        ForEach(viewModel.completedMatches) { match in
+                            matchRow(match)
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets(top: 3, leading: 8, bottom: 3, trailing: 8))
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    guard viewModel.canResume(match: match) else { return }
+                                    pendingResumeTarget = ResumeTarget(kind: .historical, match: match)
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        pendingDeleteMatch = match
+                                    } label: {
+                                        Label("Löschen", systemImage: "trash")
+                                    }
+                                }
+                        }
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
             }
         }
-        .padding(.top, 4)
         .alert(
             "Match löschen?",
             isPresented: Binding(
@@ -137,15 +146,16 @@ struct LastMatchesView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text("\(match.teamAName) vs \(match.teamBName)")
                 .font(.caption2)
+                .foregroundStyle(AppTheme.textPrimary)
                 .lineLimit(1)
 
             Text(Self.matchDateFormatter.string(from: match.playedAt))
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.textSecondary)
 
             Text("Sätze \(match.setsTeamA):\(match.setsTeamB)")
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppTheme.textSecondary)
 
             setScoreBoard(for: match)
                 .padding(.top, 4)
@@ -153,15 +163,19 @@ struct LastMatchesView: View {
             if match.winner == nil || viewModel.canResume(match: match) {
                 Text("Nicht abgeschlossen")
                     .font(.system(size: 10, weight: .regular, design: .rounded))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppTheme.textSecondary)
                     .padding(.top, 5)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(6)
+        .padding(8)
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.white.opacity(0.08))
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(AppTheme.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(AppTheme.border, lineWidth: 1)
         )
     }
 
@@ -273,11 +287,11 @@ struct LastMatchesView: View {
             .frame(width: width, height: height)
             .background(
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(highlighted ? Color.gray.opacity(0.5) : Color.clear.opacity(0.01))
+                    .fill(highlighted ? AppTheme.accentSoft : Color.clear.opacity(0.01))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .stroke(Color.primary.opacity(0.6), lineWidth: 1)
+                    .stroke(AppTheme.border, lineWidth: 1)
             )
     }
 }
