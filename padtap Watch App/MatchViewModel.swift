@@ -101,6 +101,62 @@ final class MatchViewModel: ObservableObject {
         return cleaned.isEmpty ? fallback : cleaned
     }
 
+    func pointText(for team: TeamSide) -> String {
+        switch pointDisplay() {
+        case let .regular(teamA, teamB):
+            return team == .teamA ? teamA : teamB
+        case .deuce:
+            return "40"
+        case let .advantage(advantageTeam):
+            return team == advantageTeam ? "Ad" : "40"
+        }
+    }
+
+    func pointCenterLabel() -> String? {
+        switch pointDisplay() {
+        case .deuce:
+            return "Deuce"
+        case let .advantage(team):
+            return "Ad \(teamName(for: team))"
+        case .regular:
+            return nil
+        }
+    }
+
+    func scoreColumns(maxColumns: Int = 3) -> [ScoreColumnDisplay] {
+        guard let state = matchState else {
+            return Array(repeating: ScoreColumnDisplay(teamAText: "-", teamBText: "-", isCurrentSet: false), count: maxColumns)
+        }
+
+        var columns = state.completedSets.map {
+            ScoreColumnDisplay(
+                teamAText: "\($0.teamAGames)",
+                teamBText: "\($0.teamBGames)",
+                isCurrentSet: false
+            )
+        }
+
+        columns.append(
+            ScoreColumnDisplay(
+                teamAText: "\(state.gamesTeamA)",
+                teamBText: "\(state.gamesTeamB)",
+                isCurrentSet: true
+            )
+        )
+
+        if columns.count < maxColumns {
+            let placeholders = Array(
+                repeating: ScoreColumnDisplay(teamAText: "-", teamBText: "-", isCurrentSet: false),
+                count: maxColumns - columns.count
+            )
+            columns = placeholders + columns
+        } else if columns.count > maxColumns {
+            columns = Array(columns.suffix(maxColumns))
+        }
+
+        return columns
+    }
+
     private func playHaptic(for event: ScoreEvent) {
         switch event {
         case .none:

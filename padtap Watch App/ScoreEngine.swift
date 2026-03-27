@@ -60,11 +60,11 @@ struct ScoreEngine {
                         return finishGame(winner: team, from: state)
                     } else {
                         state.advantageTeam = nil
-                        return ScoreTransition(state: state, event: .pointWon)
+                        return pointWonTransition(from: state)
                     }
                 } else {
                     state.advantageTeam = team
-                    return ScoreTransition(state: state, event: .pointWon)
+                    return pointWonTransition(from: state)
                 }
             }
         }
@@ -73,13 +73,13 @@ struct ScoreEngine {
         case .teamA:
             if state.pointsTeamA < 3 {
                 state.pointsTeamA += 1
-                return ScoreTransition(state: state, event: .pointWon)
+                return pointWonTransition(from: state)
             }
             return finishGame(winner: .teamA, from: state)
         case .teamB:
             if state.pointsTeamB < 3 {
                 state.pointsTeamB += 1
-                return ScoreTransition(state: state, event: .pointWon)
+                return pointWonTransition(from: state)
             }
             return finishGame(winner: .teamB, from: state)
         }
@@ -98,6 +98,8 @@ struct ScoreEngine {
         state.pointsTeamA = 0
         state.pointsTeamB = 0
         state.advantageTeam = nil
+        state.servingTeam = state.servingTeam.opponent
+        state.servingSide = .right
 
         if state.gamesTeamA == 6 && state.gamesTeamB == 6 {
             state.tiebreakPending = true
@@ -105,6 +107,9 @@ struct ScoreEngine {
         }
 
         if hasWonSet(team: winner, in: state) {
+            let finishedSet = SetScore(teamAGames: state.gamesTeamA, teamBGames: state.gamesTeamB)
+            state.completedSets.append(finishedSet)
+
             switch winner {
             case .teamA:
                 state.setsTeamA += 1
@@ -126,6 +131,12 @@ struct ScoreEngine {
         }
 
         return ScoreTransition(state: state, event: .gameWon(winner))
+    }
+
+    private func pointWonTransition(from currentState: MatchState) -> ScoreTransition {
+        var state = currentState
+        state.servingSide = state.servingSide.toggled
+        return ScoreTransition(state: state, event: .pointWon)
     }
 
     private func hasWonSet(team: TeamSide, in state: MatchState) -> Bool {

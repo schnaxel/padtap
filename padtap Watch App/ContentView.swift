@@ -21,6 +21,8 @@ struct ContentView: View {
                 ResultView(viewModel: viewModel)
             }
         }
+        .persistentSystemOverlays(.hidden)
+        .ignoresSafeArea()
     }
 }
 

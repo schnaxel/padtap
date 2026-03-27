@@ -43,6 +43,26 @@ enum PointDisplay: Equatable {
     case advantage(TeamSide)
 }
 
+enum ServeSide: String, Codable, Equatable {
+    case right
+    case left
+
+    var toggled: ServeSide {
+        self == .right ? .left : .right
+    }
+}
+
+struct SetScore: Equatable, Codable {
+    let teamAGames: Int
+    let teamBGames: Int
+}
+
+struct ScoreColumnDisplay: Equatable {
+    let teamAText: String
+    let teamBText: String
+    let isCurrentSet: Bool
+}
+
 struct MatchSetup: Equatable, Codable {
     var teamAName: String
     var teamBName: String
@@ -59,10 +79,15 @@ struct MatchSetup: Equatable, Codable {
 
 struct MatchState: Equatable, Codable {
     var setup: MatchSetup
+    var startedAt: Date = Date()
 
     var pointsTeamA: Int = 0
     var pointsTeamB: Int = 0
     var advantageTeam: TeamSide? = nil
+    var servingTeam: TeamSide = .teamA
+    var servingSide: ServeSide = .right
+
+    var completedSets: [SetScore] = []
 
     var gamesTeamA: Int = 0
     var gamesTeamB: Int = 0

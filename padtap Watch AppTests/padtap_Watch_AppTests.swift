@@ -24,6 +24,26 @@ struct padtap_Watch_AppTests {
         #expect(engine.pointDisplay(for: state) == .regular(teamA: "40", teamB: "0"))
     }
 
+    @Test("Aufschlag startet bei Team A auf rechts")
+    func serveStartsRight() {
+        let state = initialState(ruleMode: .advantage)
+        #expect(state.servingTeam == .teamA)
+        #expect(state.servingSide == .right)
+    }
+
+    @Test("Aufschlagseite wechselt nach jedem Punkt")
+    func serveSideAlternatesEveryPoint() {
+        var state = initialState(ruleMode: .advantage)
+
+        state = engine.addPoint(to: .teamA, in: state).state
+        #expect(state.servingTeam == .teamA)
+        #expect(state.servingSide == .left)
+
+        state = engine.addPoint(to: .teamB, in: state).state
+        #expect(state.servingTeam == .teamA)
+        #expect(state.servingSide == .right)
+    }
+
     @Test("Deuce wird korrekt angezeigt")
     func deuceDisplay() {
         var state = initialState(ruleMode: .advantage)
@@ -59,6 +79,8 @@ struct padtap_Watch_AppTests {
         #expect(state.pointsTeamA == 0)
         #expect(state.pointsTeamB == 0)
         #expect(state.advantageTeam == nil)
+        #expect(state.servingTeam == .teamB)
+        #expect(state.servingSide == .right)
     }
 
     @Test("Game-Gewinn setzt Punkte zurück")
@@ -74,6 +96,8 @@ struct padtap_Watch_AppTests {
         #expect(state.gamesTeamB == 0)
         #expect(state.pointsTeamA == 0)
         #expect(state.pointsTeamB == 0)
+        #expect(state.servingTeam == .teamB)
+        #expect(state.servingSide == .right)
     }
 
     @Test("Satz-Gewinn bei 6 Games mit 2 Vorsprung")
